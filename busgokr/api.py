@@ -1,7 +1,8 @@
 __author__ = 'Gabor Tanz'
 
 import requests
-from decimal import *
+from decimal import Decimal
+from datetime import datetime, time
 
 
 def get_bus_routes(number=''):
@@ -13,12 +14,81 @@ def get_bus_routes(number=''):
     results = response[RESULTS['result']]
     routes = []
     if len(results) != 0:
-        for route in results:
-            routes.append(BusRoute(route))
+        for r in results:
+            route = BusRoute(r)
+            route.corporation = r[RESULTS['route']['corporation']]
+            routes.append(route)
 
     error = Error(response[RESULTS['error']['name']])
 
     return routes, error
+
+
+def get_low_bus_routes(number=''):
+    method = BUS_PATHS['route_list_low']
+    url = API_URLS['bus'] + method['path']
+    params = {method['params']: number}
+
+    response = requests.get(url, params=params).json()
+    results = response[RESULTS['result']]
+    routes = []
+    if len(results) != 0:
+        for r in results:
+            route = BusRoute(r)
+            route.corporation = r[RESULTS['route']['corporation']]
+            routes.append(route)
+
+    error = Error(response[RESULTS['error']['name']])
+
+    return routes, error
+
+
+def get_night_bus_routes():
+    method = BUS_PATHS['route_list_night']
+    url = API_URLS['bus'] + method['path']
+
+    response = requests.get(url).json()
+    results = response[RESULTS['result']]
+    routes = []
+    if len(results) != 0:
+        for r in results:
+            routes.append(NightBusRoute(r))
+
+    error = Error(response[RESULTS['error']['name']])
+
+    return routes, error
+
+
+def get_airport_bus_routes():
+    method = BUS_PATHS['route_list_airport']
+    url = API_URLS['bus'] + method['path']
+
+    response = requests.get(url).json()
+    results = response[RESULTS['result']]
+    routes = []
+    if len(results) != 0:
+        for r in results:
+            routes.append(BusRoute(r))
+
+    error = Error(response[RESULTS['error']['name']])
+
+    return routes, error
+
+
+def get_route_info(route_id):
+    method = BUS_PATHS['route_info']
+    url = API_URLS['bus'] + method['path']
+    params = {method['params']: route_id}
+
+    response = requests.get(url, params=params).json()
+    results = response[RESULTS['result']]
+    if len(results) != 1:
+        return
+
+    route = BusRoute(results[0])
+    error = Error(response[RESULTS['error']['name']])
+
+    return route, error
 
 
 class Error:
@@ -30,7 +100,7 @@ class Error:
         self.message = json[RESULTS['error']['message']]
 
 
-class BusRoute:
+class BusRouteBase:
     id = 0
     name = ''
     length = 0.0
@@ -39,6 +109,10 @@ class BusRoute:
     start = ''
     end = ''
     corporation = ''
+    first = 0
+    last = 0
+    first_low = 0
+    last_low = 0
 
     def __init__(self, json):
         self.id = int(json[RESULTS['route']['id']])
@@ -48,7 +122,39 @@ class BusRoute:
         self.type = int(json[RESULTS['route']['type']])
         self.start = json[RESULTS['route']['start']]
         self.end = json[RESULTS['route']['end']]
-        self.corporation = json[RESULTS['route']['corporation']]
+        if json[RESULTS['route']['first_low']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['first_low']], '%Y%m%d%H%M%S')
+            self.first_low = time(dt.hour, dt.minute)
+        if json[RESULTS['route']['last_low']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['last_low']], '%Y%m%d%H%M%S')
+            self.last_low = time(dt.hour, dt.minute)
+
+
+class BusRoute(BusRouteBase):
+
+    def __init__(self, json):
+        super().__init__(json)
+        if json[RESULTS['route']['first']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['first']], '%Y%m%d%H%M%S')
+            self.first = time(dt.hour, dt.minute)
+        if json[RESULTS['route']['last']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['last']], '%Y%m%d%H%M%S')
+            self.last = time(dt.hour, dt.minute)
+
+
+class NightBusRoute(BusRouteBase):
+    subway_stations = []
+
+    def __init__(self, json):
+        super().__init__(json)
+        self.subway_stations = json[RESULTS['route']['subway_stations']]
+        if json[RESULTS['route']['first']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['first']], '%H:%M ')
+            self.first = time(dt.hour, dt.minute)
+        if json[RESULTS['route']['last']] != ' ':
+            dt = datetime.strptime(json[RESULTS['route']['last']], '%H:%M ')
+            self.last = time(dt.hour, dt.minute)
+
 
 RESULTS = {
     'error': {
@@ -66,6 +172,11 @@ RESULTS = {
         'start': 'stStationNm',
         'end': 'edStationNm',
         'corporation': 'corpNm',
+        'first': 'firstBusTm',
+        'last': 'lastBusTm',
+        'first_low': 'firstLowTm',
+        'last_low': 'lastLowTm',
+        'subway_stations': 'subwayNm',
     },
 }
 
