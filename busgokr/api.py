@@ -11,6 +11,10 @@ def get_bus_routes(number=''):
     params = {method['params']: number}
 
     response = requests.get(url, params=params).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
     results = response[RESULTS['result']]
     routes = []
     if len(results) != 0:
@@ -21,9 +25,7 @@ def get_bus_routes(number=''):
             route.set_first_last_low(r)
             routes.append(route)
 
-    error = Error(response[RESULTS['error']['name']])
-
-    return routes, error
+    return routes
 
 
 def get_low_bus_routes(number=''):
@@ -32,6 +34,10 @@ def get_low_bus_routes(number=''):
     params = {method['params']: number}
 
     response = requests.get(url, params=params).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
     results = response[RESULTS['result']]
     routes = []
     if len(results) != 0:
@@ -42,9 +48,7 @@ def get_low_bus_routes(number=''):
             route.set_first_last_low(r)
             routes.append(route)
 
-    error = Error(response[RESULTS['error']['name']])
-
-    return routes, error
+    return routes
 
 
 def get_night_bus_routes():
@@ -52,6 +56,10 @@ def get_night_bus_routes():
     url = API_URLS['bus'] + method['path']
 
     response = requests.get(url).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
     results = response[RESULTS['result']]
     routes = []
     if len(results) != 0:
@@ -62,9 +70,7 @@ def get_night_bus_routes():
             route.set_first_last_low(r)
             routes.append(route)
 
-    error = Error(response[RESULTS['error']['name']])
-
-    return routes, error
+    return routes
 
 
 def get_airport_bus_routes():
@@ -72,15 +78,40 @@ def get_airport_bus_routes():
     url = API_URLS['bus'] + method['path']
 
     response = requests.get(url).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
     results = response[RESULTS['result']]
     routes = []
     if len(results) != 0:
         for r in results:
-            routes.append(BusRoute(r))
+            route = BusRoute(r)
+            route.set_first_last(r)
+            routes.append(route)
 
+    return routes
+
+
+def get_bus_routes_by_type(number, type):
+    method = BUS_PATHS['route_list_by_type']
+    url = API_URLS['bus'] + method['path']
+    params = {method['params'][0]: number, method['params'][1]: type}
+
+    response = requests.get(url, params=params).json()
     error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
 
-    return routes, error
+    results = response[RESULTS['result']]
+    routes = []
+    if len(results) != 0:
+        for r in results:
+            route = BusRoute(r)
+            route.set_first_last(r)
+            routes.append(route)
+
+    return routes
 
 
 def get_route_info(route_id):
@@ -89,14 +120,39 @@ def get_route_info(route_id):
     params = {method['params']: route_id}
 
     response = requests.get(url, params=params).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
     results = response[RESULTS['result']]
     if len(results) != 1:
         return
 
     route = BusRoute(results[0])
-    error = Error(response[RESULTS['error']['name']])
 
-    return route, error
+    return route
+
+
+def get_route_waypoints(route_id):
+    method = BUS_PATHS['route_waypoints']
+    url = API_URLS['bus'] + method['path']
+    params = {method['params']: route_id}
+
+    response = requests.get(url, params=params).json()
+    error = Error(response[RESULTS['error']['name']])
+    if error.code != 0:
+        return error
+
+    results = response[RESULTS['result']]
+    waypoints = []
+    if len(results) != 0:
+        for r in results:
+            longitude = r[RESULTS['waypoints']['longitude']]
+            latitude = r[RESULTS['waypoints']['latitude']]
+            waypoint = {'longitude': longitude, 'latitude': latitude}
+            waypoints.append(waypoint)
+
+    return waypoints
 
 
 class Error:
@@ -122,6 +178,7 @@ class BusRoute:
     first_low = 0
     last_low = 0
     subway_stations = []
+    waypoints = []
 
     def __init__(self, json):
         self.id = int(json[RESULTS['route']['id']])
@@ -179,6 +236,10 @@ RESULTS = {
         'last_low': 'lastLowTm',
         'subway_stations': 'subwayNm',
     },
+    'waypoints': {
+        'longitude': 'gpsX',
+        'latitude': 'gpsY',
+    },
 }
 
 API_URLS = {
@@ -210,7 +271,7 @@ BUS_PATHS = {
         'path': 'getRttpRoute.bms',
         'params': ['strSrch', 'stRttp'],
     },
-    'route_path': {
+    'route_waypoints': {
         'path': 'getRoutePath.bms',
         'params': 'busRouteId',
     },
