@@ -7,8 +7,22 @@ def get_bus_routes(number=''):
     method = BUS_PATHS['route_list']
     url = API_URLS['bus'] + method['path']
     params = {method['params']: number}
-    return requests.get(url, params=params).json()
 
+    response = requests.get(url, params=params).json()
+    results = response[RESULT_OBJECTS['result']]
+    error = response[RESULT_OBJECTS['error']['name']]
+
+    return results, error
+
+
+RESULT_OBJECTS = {
+    'error': {
+        'name': 'error',
+        'code': 'errorCode',
+        'message': 'errorMessage',
+    },
+    'result': 'resultList',
+}
 
 API_URLS = {
     'bus': 'http://m.bus.go.kr/mBus/bus/',
