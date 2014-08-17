@@ -17,6 +17,8 @@ def get_bus_routes(number=''):
         for r in results:
             route = BusRoute(r)
             route.corporation = r[RESULTS['route']['corporation']]
+            route.set_first_last(r)
+            route.set_first_last_low(r)
             routes.append(route)
 
     error = Error(response[RESULTS['error']['name']])
@@ -36,6 +38,8 @@ def get_low_bus_routes(number=''):
         for r in results:
             route = BusRoute(r)
             route.corporation = r[RESULTS['route']['corporation']]
+            route.set_first_last(r)
+            route.set_first_last_low(r)
             routes.append(route)
 
     error = Error(response[RESULTS['error']['name']])
@@ -52,7 +56,11 @@ def get_night_bus_routes():
     routes = []
     if len(results) != 0:
         for r in results:
-            routes.append(NightBusRoute(r))
+            route = BusRoute(r)
+            route.subway_stations = r[RESULTS['route']['subway_stations']]
+            route.set_first_last_night(r)
+            route.set_first_last_low(r)
+            routes.append(route)
 
     error = Error(response[RESULTS['error']['name']])
 
@@ -100,7 +108,7 @@ class Error:
         self.message = json[RESULTS['error']['message']]
 
 
-class BusRouteBase:
+class BusRoute:
     id = 0
     name = ''
     length = 0.0
@@ -113,6 +121,7 @@ class BusRouteBase:
     last = 0
     first_low = 0
     last_low = 0
+    subway_stations = []
 
     def __init__(self, json):
         self.id = int(json[RESULTS['route']['id']])
@@ -122,6 +131,8 @@ class BusRouteBase:
         self.type = int(json[RESULTS['route']['type']])
         self.start = json[RESULTS['route']['start']]
         self.end = json[RESULTS['route']['end']]
+
+    def set_first_last_low(self, json):
         if json[RESULTS['route']['first_low']] != ' ':
             dt = datetime.strptime(json[RESULTS['route']['first_low']], '%Y%m%d%H%M%S')
             self.first_low = time(dt.hour, dt.minute)
@@ -129,11 +140,7 @@ class BusRouteBase:
             dt = datetime.strptime(json[RESULTS['route']['last_low']], '%Y%m%d%H%M%S')
             self.last_low = time(dt.hour, dt.minute)
 
-
-class BusRoute(BusRouteBase):
-
-    def __init__(self, json):
-        super().__init__(json)
+    def set_first_last(self, json):
         if json[RESULTS['route']['first']] != ' ':
             dt = datetime.strptime(json[RESULTS['route']['first']], '%Y%m%d%H%M%S')
             self.first = time(dt.hour, dt.minute)
@@ -141,13 +148,7 @@ class BusRoute(BusRouteBase):
             dt = datetime.strptime(json[RESULTS['route']['last']], '%Y%m%d%H%M%S')
             self.last = time(dt.hour, dt.minute)
 
-
-class NightBusRoute(BusRouteBase):
-    subway_stations = []
-
-    def __init__(self, json):
-        super().__init__(json)
-        self.subway_stations = json[RESULTS['route']['subway_stations']]
+    def set_first_last_night(self, json):
         if json[RESULTS['route']['first']] != ' ':
             dt = datetime.strptime(json[RESULTS['route']['first']], '%H:%M ')
             self.first = time(dt.hour, dt.minute)
