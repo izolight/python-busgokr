@@ -1,6 +1,7 @@
 __author__ = 'Gabor Tanz'
 
 import requests
+from decimal import *
 
 
 def get_bus_routes(number=''):
@@ -9,19 +10,63 @@ def get_bus_routes(number=''):
     params = {method['params']: number}
 
     response = requests.get(url, params=params).json()
-    results = response[RESULT_OBJECTS['result']]
-    error = response[RESULT_OBJECTS['error']['name']]
+    results = response[RESULTS['result']]
+    routes = []
+    if len(results) != 0:
+        for route in results:
+            routes.append(BusRoute(route))
 
-    return results, error
+    error = Error(response[RESULTS['error']['name']])
+
+    return routes, error
 
 
-RESULT_OBJECTS = {
+class Error:
+    code = 0
+    message = ''
+
+    def __init__(self, json):
+        self.code = int(json[RESULTS['error']['code']])
+        self.message = json[RESULTS['error']['message']]
+
+
+class BusRoute:
+    id = 0
+    name = ''
+    length = 0.0
+    interval = 0
+    type = 0
+    start = ''
+    end = ''
+    corporation = ''
+
+    def __init__(self, json):
+        self.id = int(json[RESULTS['route']['id']])
+        self.name = json[RESULTS['route']['name']]
+        self.length = Decimal(json[RESULTS['route']['length']])
+        self.interval = int(json[RESULTS['route']['interval']])
+        self.type = int(json[RESULTS['route']['type']])
+        self.start = json[RESULTS['route']['start']]
+        self.end = json[RESULTS['route']['end']]
+        self.corporation = json[RESULTS['route']['corporation']]
+
+RESULTS = {
     'error': {
         'name': 'error',
         'code': 'errorCode',
         'message': 'errorMessage',
     },
     'result': 'resultList',
+    'route': {
+        'id': 'busRouteId',
+        'name': 'busRouteNm',
+        'length': 'length',
+        'interval': 'term',
+        'type': 'routeType',
+        'start': 'stStationNm',
+        'end': 'edStationNm',
+        'corporation': 'corpNm',
+    },
 }
 
 API_URLS = {
