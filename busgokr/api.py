@@ -1,9 +1,10 @@
-__author__ = 'Gabor Tanz'
+#!/usr/bin/env python3
 
 import requests
 from decimal import Decimal
 from datetime import datetime, time
 
+from busgokr import endpoints
 
 def get_bus_routes(number=''):
     method = BUS_PATHS['route_list']
