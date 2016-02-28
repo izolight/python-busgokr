@@ -6,6 +6,26 @@ from datetime import datetime, time
 
 from busgokr import endpoints
 
+class BusRoute:
+    def __init__(self, data)
+        self.id = data.get('busRouteId')
+        self.corporation = data.get('corpNm')
+        self.first_bus = datetime.strptime(data.get('firstBusTm', "%Y%m%d%H%M%S"))
+        self.last_bus = datetime.strptime(data.get('lastBusTm', "%Y%m%d%H%M%S"))
+        self.route_type = data.get('routeType')
+        self.first_low_bus = datetime.strptime(data.get('firstLowTm', "%Y%m%d%H%M%S"))
+        self.last_low_bus = datetime.strptime(data.get('lastLowTm', "%Y%m%d%H%M%S"))
+        self.interval = data.get('term')
+        self.name = data.get('busRouteNm')
+        self.length = data.get('length')
+        
+    def __str__(self):
+        return self.name
+
+    def __len__(self):
+        return self.length
+
+
 def get_bus_routes(number=''):
     method = BUS_PATHS['route_list']
     url = API_URLS['bus'] + method['path']
@@ -165,54 +185,6 @@ class Error:
         self.message = json[RESULTS['error']['message']]
 
 
-class BusRoute:
-    id = 0
-    name = ''
-    length = 0.0
-    interval = 0
-    type = 0
-    start = ''
-    end = ''
-    corporation = ''
-    first = 0
-    last = 0
-    first_low = 0
-    last_low = 0
-    subway_stations = []
-    waypoints = []
-
-    def __init__(self, json):
-        self.id = int(json[RESULTS['route']['id']])
-        self.name = json[RESULTS['route']['name']]
-        self.length = Decimal(json[RESULTS['route']['length']])
-        self.interval = int(json[RESULTS['route']['interval']])
-        self.type = int(json[RESULTS['route']['type']])
-        self.start = json[RESULTS['route']['start']]
-        self.end = json[RESULTS['route']['end']]
-
-    def set_first_last_low(self, json):
-        if json[RESULTS['route']['first_low']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['first_low']], '%Y%m%d%H%M%S')
-            self.first_low = time(dt.hour, dt.minute)
-        if json[RESULTS['route']['last_low']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['last_low']], '%Y%m%d%H%M%S')
-            self.last_low = time(dt.hour, dt.minute)
-
-    def set_first_last(self, json):
-        if json[RESULTS['route']['first']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['first']], '%Y%m%d%H%M%S')
-            self.first = time(dt.hour, dt.minute)
-        if json[RESULTS['route']['last']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['last']], '%Y%m%d%H%M%S')
-            self.last = time(dt.hour, dt.minute)
-
-    def set_first_last_night(self, json):
-        if json[RESULTS['route']['first']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['first']], '%H:%M ')
-            self.first = time(dt.hour, dt.minute)
-        if json[RESULTS['route']['last']] != ' ':
-            dt = datetime.strptime(json[RESULTS['route']['last']], '%H:%M ')
-            self.last = time(dt.hour, dt.minute)
 
 
 RESULTS = {
