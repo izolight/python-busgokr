@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+
 import requests
-from decimal import Decimal
-from datetime import datetime, time
 
 from busgokr import endpoints
+from busgokr.exceptions import *
+
 
 class BusRoute:
-    def __init__(self, data)
+    def __init__(self, data):
         self.id = data.get('busRouteId')
         self.corporation = data.get('corpNm')
-        self.first_bus = datetime.strptime(data.get('firstBusTm', "%Y%m%d%H%M%S"))
-        self.last_bus = datetime.strptime(data.get('lastBusTm', "%Y%m%d%H%M%S"))
+        self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
+        self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
         self.route_type = data.get('routeType')
-        self.first_low_bus = datetime.strptime(data.get('firstLowTm', "%Y%m%d%H%M%S"))
-        self.last_low_bus = datetime.strptime(data.get('lastLowTm', "%Y%m%d%H%M%S"))
+        self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
+        self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
         self.interval = data.get('term')
         self.name = data.get('busRouteNm')
         self.length = data.get('length')
-        
+        self.start_station = data.get('stStationNm')
+        self.end_station = data.get('edStationNm')
+
     def __str__(self):
         return self.name
 
@@ -26,132 +30,93 @@ class BusRoute:
         return self.length
 
 
-def get_bus_routes(number=''):
-    method = BUS_PATHS['route_list']
-    url = API_URLS['bus'] + method['path']
-    params = {method['params']: number}
-
-    response = requests.get(url, params=params).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    routes = []
-    if len(results) != 0:
-        for r in results:
-            route = BusRoute(r)
-            route.corporation = r[RESULTS['route']['corporation']]
-            route.set_first_last(r)
-            route.set_first_last_low(r)
-            routes.append(route)
-
-    return routes
+def get_bus_route(route_id=None, name=None):
+    errors = []
+    if not (route_id or name):
+        raise MissingParameters("Either id or name are required for route retrieval, none provided.")
+    if route_id:
+        try:
+            return route_info(route_id)
+        except IDNotFound as e:
+            errors.append(e.value)
+    if name:
+        try:
+            routes = search_route(name)
+            if len(routes) == 1:
+                return routes[0]
+            else:
+                return routes
+        except NameNotFound as e:
+            errors.append(e.value)
+    raise BusRouteNotFound(' ,'.join(errors))
 
 
-def get_low_bus_routes(number=''):
-    method = BUS_PATHS['route_list_low']
-    url = API_URLS['bus'] + method['path']
-    params = {method['params']: number}
-
-    response = requests.get(url, params=params).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    routes = []
-    if len(results) != 0:
-        for r in results:
-            route = BusRoute(r)
-            route.corporation = r[RESULTS['route']['corporation']]
-            route.set_first_last(r)
-            route.set_first_last_low(r)
-            routes.append(route)
-
-    return routes
+def get_bus_route_list(name='', route_type=None):
+    errors = []
+    if route_type and len(name) > 0:
+        try:
+            return search_route_type(name, route_type)
+        except NameNotFound as e:
+            errors.append(e.value)
+    try:
+        return search_route(name)
+    except NameNotFound as e:
+        errors.append(e.value)
+    raise BusRouteNotFound(' ,'.join(errors))
 
 
-def get_night_bus_routes():
-    method = BUS_PATHS['route_list_night']
-    url = API_URLS['bus'] + method['path']
-
-    response = requests.get(url).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    routes = []
-    if len(results) != 0:
-        for r in results:
-            route = BusRoute(r)
-            route.subway_stations = r[RESULTS['route']['subway_stations']]
-            route.set_first_last_night(r)
-            route.set_first_last_low(r)
-            routes.append(route)
-
-    return routes
+def route_info(route_id):
+    url = endpoints.bus_route_by_id.format(route_id)
+    q = _query_endpoint(url)
+    if q:
+        return BusRoute(q[0])
+    else:
+        raise IDNotFound('No busroute with id {0} found.'.format(route_id))
 
 
-def get_airport_bus_routes():
-    method = BUS_PATHS['route_list_airport']
-    url = API_URLS['bus'] + method['path']
-
-    response = requests.get(url).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    routes = []
-    if len(results) != 0:
-        for r in results:
-            route = BusRoute(r)
-            route.set_first_last(r)
-            routes.append(route)
-
-    return routes
+def search_route(name):
+    url = endpoints.bus_route_search.format(name)
+    q = _query_endpoint(url)
+    if q:
+        routes = []
+        for r in q:
+            routes.append(BusRoute(r))
+        return routes
+    else:
+        raise NameNotFound('No busroutes with name {0} found.'.format(name))
 
 
-def get_bus_routes_by_type(number, type):
-    method = BUS_PATHS['route_list_by_type']
-    url = API_URLS['bus'] + method['path']
-    params = {method['params'][0]: number, method['params'][1]: type}
-
-    response = requests.get(url, params=params).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    routes = []
-    if len(results) != 0:
-        for r in results:
-            route = BusRoute(r)
-            route.set_first_last(r)
-            routes.append(route)
-
-    return routes
+def search_route_type(name, route_type):
+    url = endpoints.bus_routes_by_type.format(name, route_type)
+    q = _query_endpoint(url)
+    if q:
+        routes = []
+        for r in q:
+            routes.append(BusRoute(r))
+        return routes
+    else:
+        raise NameNotFound('No busroutes with name {0} and type {1} found.'.format(name, route_type))
 
 
-def get_route_info(route_id):
-    method = BUS_PATHS['route_info']
-    url = API_URLS['bus'] + method['path']
-    params = {method['params']: route_id}
+def _query_endpoint(url):
+    try:
+        data = requests.get(url).json()
+    except requests.HTTPError as e:
+        raise e
+    except requests.URLRequired as e:
+        raise e
 
-    response = requests.get(url, params=params).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
+    if data['error']['errorCode'] == '0000':
+        if 'resultList' in data.keys:
+            if data['resultList']:
+                return data['resultList']
+            else:
+                return None
+        else:
+            return None
+    else:
+        raise ApiError(data['error'])
 
-    results = response[RESULTS['result']]
-    if len(results) != 1:
-        return
-
-    route = BusRoute(results[0])
-
-    return route
 
 
 def get_route_waypoints(route_id):
@@ -183,8 +148,6 @@ class Error:
     def __init__(self, json):
         self.code = int(json[RESULTS['error']['code']])
         self.message = json[RESULTS['error']['message']]
-
-
 
 
 RESULTS = {
