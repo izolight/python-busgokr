@@ -12,11 +12,15 @@ class BusRoute:
     def __init__(self, data):
         self.id = data.get('busRouteId')
         self.corporation = data.get('corpNm')
-        self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
-        self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
+        if not data.get('firstBusTm').isspace():
+            self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
+        if not data.get('lastBusTm').isspace():
+            self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
+        if not data.get('firstLowTm').isspace():
+            self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
+        if not data.get('lastLowTm').isspace():
+            self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
         self.route_type = data.get('routeType')
-        self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
-        self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
         self.interval = data.get('term')
         self.name = data.get('busRouteNm')
         self.length = data.get('length')
@@ -107,7 +111,7 @@ def _query_endpoint(url):
         raise e
 
     if data['error']['errorCode'] == '0000':
-        if 'resultList' in data.keys:
+        if 'resultList' in data.keys():
             if data['resultList']:
                 return data['resultList']
             else:
@@ -116,7 +120,6 @@ def _query_endpoint(url):
             return None
     else:
         raise ApiError(data['error'])
-
 
 
 def get_route_waypoints(route_id):
