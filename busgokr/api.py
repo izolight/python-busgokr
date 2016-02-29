@@ -12,14 +12,18 @@ class BusRoute:
     def __init__(self, data):
         self.id = int(data.get('busRouteId'))
         self.corporation = data.get('corpNm')
-        if not data.get('firstBusTm').isspace():
-            self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
-        if not data.get('lastBusTm').isspace():
-            self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
-        if not data.get('firstLowTm').isspace():
-            self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
-        if not data.get('lastLowTm').isspace():
-            self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
+        if data.get('firstBusTm'):
+            if not data.get('firstBusTm').isspace():
+                self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
+        if data.get('lastBusTm'):
+            if not data.get('lastBusTm').isspace():
+                self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
+        if data.get('firstLowTm'):
+            if not data.get('firstLowTm').isspace():
+                self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
+        if data.get('lastLowTm'):
+            if not data.get('lastLowTm').isspace():
+                self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
         self.route_type = int(data.get('routeType'))
         self.interval = int(data.get('term'))
         self.name = data.get('busRouteNm')
@@ -57,12 +61,12 @@ def get_bus_route(route_id=None, name=None):
         raise MissingParameters("Either id or name are required for route retrieval, none provided.")
     if route_id:
         try:
-            return route_info(route_id)
+            return bus_route_info(route_id)
         except IDNotFound as e:
             errors.append(e.value)
     if name:
         try:
-            routes = search_route(name)
+            routes = bus_route_search(name)
             if len(routes) == 1:
                 return routes[0]
             else:
@@ -76,11 +80,11 @@ def get_bus_route_list(name='', route_type=None):
     errors = []
     if route_type and len(name) > 0:
         try:
-            return search_route_type(name, route_type)
+            return bus_route_type_search(name, route_type)
         except NameNotFound as e:
             errors.append(e.value)
     try:
-        return search_route(name)
+        return bus_route_search(name)
     except NameNotFound as e:
         errors.append(e.value)
     raise BusRouteNotFound(' ,'.join(errors))
@@ -91,13 +95,14 @@ def get_bus_route_waypoints(route_id=None):
     if not route_id:
         raise MissingParameters("Id is required for waypoint retrieval, none provided.")
     try:
-        return route_waypoints(route_id)
+        return bus_route_waypoints(route_id)
     except IDNotFound as e:
         errors.append(e.value)
     raise BusRouteNotFound(' ,'.join(errors))
 
 
-def route_info(route_id):
+# Bus.go.kr endpoints
+def bus_route_info(route_id):
     url = endpoints.bus_route_by_id.format(route_id)
     q = _query_endpoint(url)
     if q:
@@ -106,7 +111,7 @@ def route_info(route_id):
         raise IDNotFound('No busroute with id {0} found.'.format(route_id))
 
 
-def search_route(name):
+def bus_route_search(name):
     url = endpoints.bus_route_search.format(name)
     q = _query_endpoint(url)
     if q:
@@ -118,7 +123,7 @@ def search_route(name):
         raise NameNotFound('No busroutes with name {0} found.'.format(name))
 
 
-def search_route_type(name, route_type):
+def bus_route_type_search(name, route_type):
     url = endpoints.bus_routes_by_type.format(name, route_type)
     q = _query_endpoint(url)
     if q:
@@ -130,7 +135,7 @@ def search_route_type(name, route_type):
         raise NameNotFound('No busroutes with name {0} and type {1} found.'.format(name, route_type))
 
 
-def route_waypoints(route_id):
+def bus_route_waypoints(route_id):
     url = endpoints.route_path_by_id.format(route_id)
     q = _query_endpoint(url)
     if q:
