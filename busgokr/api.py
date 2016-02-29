@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-
+from decimal import Decimal
 import requests
 
 from busgokr import endpoints
@@ -10,7 +10,7 @@ from busgokr.exceptions import *
 
 class BusRoute:
     def __init__(self, data):
-        self.id = data.get('busRouteId')
+        self.id = int(data.get('busRouteId'))
         self.corporation = data.get('corpNm')
         if not data.get('firstBusTm').isspace():
             self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
@@ -20,18 +20,35 @@ class BusRoute:
             self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
         if not data.get('lastLowTm').isspace():
             self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
-        self.route_type = data.get('routeType')
-        self.interval = data.get('term')
+        self.route_type = int(data.get('routeType'))
+        self.interval = int(data.get('term'))
         self.name = data.get('busRouteNm')
-        self.length = data.get('length')
+        self.length = float(data.get('length'))
         self.start_station = data.get('stStationNm')
         self.end_station = data.get('edStationNm')
+        self.waypoints = []
+
+    def get_waypoints(self):
+        if len(self.waypoints) == 0:
+            self.waypoints = get_bus_route_waypoints(self.id)
+        return self.waypoints
 
     def __str__(self):
         return self.name
 
     def __len__(self):
         return self.length
+
+
+class BusRouteWaypoint:
+    def __init__(self, data):
+        self.x_gps = Decimal(data.get('gpsX'))
+        self.y_gps = Decimal(data.get('gpsY'))
+        self.x_korea1985 = Decimal(data.get('posX'))
+        self.y_korea1985 = Decimal(data.get('posY'))
+
+    def __str__(self):
+        return '{0}/{1}'.format(self.x_gps, self.y_gps)
 
 
 def get_bus_route(route_id=None, name=None):
@@ -69,6 +86,17 @@ def get_bus_route_list(name='', route_type=None):
     raise BusRouteNotFound(' ,'.join(errors))
 
 
+def get_bus_route_waypoints(route_id=None):
+    errors = []
+    if not route_id:
+        raise MissingParameters("Id is required for waypoint retrieval, none provided.")
+    try:
+        return route_waypoints(route_id)
+    except IDNotFound as e:
+        errors.append(e.value)
+    raise BusRouteNotFound(' ,'.join(errors))
+
+
 def route_info(route_id):
     url = endpoints.bus_route_by_id.format(route_id)
     q = _query_endpoint(url)
@@ -102,6 +130,18 @@ def search_route_type(name, route_type):
         raise NameNotFound('No busroutes with name {0} and type {1} found.'.format(name, route_type))
 
 
+def route_waypoints(route_id):
+    url = endpoints.route_path_by_id.format(route_id)
+    q = _query_endpoint(url)
+    if q:
+        waypoints = []
+        for w in q:
+            waypoints.append(BusRouteWaypoint(w))
+        return waypoints
+    else:
+        raise IDNotFound('No busroute with id {0} found.'.format(route_id))
+
+
 def _query_endpoint(url):
     try:
         data = requests.get(url).json()
@@ -120,28 +160,6 @@ def _query_endpoint(url):
             return None
     else:
         raise ApiError(data['error'])
-
-
-def get_route_waypoints(route_id):
-    method = BUS_PATHS['route_waypoints']
-    url = API_URLS['bus'] + method['path']
-    params = {method['params']: route_id}
-
-    response = requests.get(url, params=params).json()
-    error = Error(response[RESULTS['error']['name']])
-    if error.code != 0:
-        return error
-
-    results = response[RESULTS['result']]
-    waypoints = []
-    if len(results) != 0:
-        for r in results:
-            longitude = r[RESULTS['waypoints']['longitude']]
-            latitude = r[RESULTS['waypoints']['latitude']]
-            waypoint = {'longitude': longitude, 'latitude': latitude}
-            waypoints.append(waypoint)
-
-    return waypoints
 
 
 class Error:
