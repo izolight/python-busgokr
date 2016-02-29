@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal
 import requests
 
@@ -53,6 +53,33 @@ class BusRouteWaypoint:
 
     def __str__(self):
         return '{0}/{1}'.format(self.x_gps, self.y_gps)
+
+
+class BusRouteWaypointDetailed(BusRouteWaypoint):
+    def __init__(self, data):
+        super().__init__(data)
+        self.station_number = int(data.get('stationNo'))
+        self.station_name = data.get('stationNm')
+        self.station_id = int(data.get('station'))
+        self.direction = data.get('direction')
+        self.turnaround_station = int(data.get('trnstnid'))
+        self.section_speed = int(data.get('sectSpd'))
+        self.station_serial_number = data.get('arsId')  # don't convert to int to keep leading zero
+        self.section_id = int(data.get('section'))
+        if data.get('transYn') == 'Y':
+            self.is_turnaround_station = True
+        else:
+            self.is_turnaround_station = False
+        self.route_type = int(data.get('routeType'))  # redundant if part of busroute
+        self.route_name = data.get('busRouteNm')  # redundant if part of busroute
+        self.sequence_number = int(data.get('seq'))
+        if data.get('lastTm'):
+            h, m = [int(x) for x in data.get('lastTm').split(":")]
+            self.last_bus = time(h, m)
+        if data.get('firstTm'):
+            h, m = [int(x) for x in data.get('firstTm').split(":")]
+            self.first_bus = time(h, m)
+        self.section_distance = int(data.get('fullSectDist'))
 
 
 def get_bus_route(route_id=None, name=None):
@@ -142,6 +169,18 @@ def bus_route_waypoints(route_id):
         waypoints = []
         for w in q:
             waypoints.append(BusRouteWaypoint(w))
+        return waypoints
+    else:
+        raise IDNotFound('No busroute with id {0} found.'.format(route_id))
+
+
+def bus_route_waypoints_detail(route_id):
+    url = endpoints.route_path_detailed_by_id.format(route_id)
+    q = _query_endpoint(url)
+    if q:
+        waypoints = []
+        for w in q:
+            waypoints.append(BusRouteWaypointDetailed(w))
         return waypoints
     else:
         raise IDNotFound('No busroute with id {0} found.'.format(route_id))

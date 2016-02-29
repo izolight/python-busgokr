@@ -39,3 +39,11 @@ class EndpointTests(unittest.TestCase):
 
         with self.assertRaises(IDNotFound):
             bus_route_waypoints(999)
+
+    def test_bus_route_waypoints_detail(self):
+        waypoints = bus_route_waypoints_detail(122900001)
+        self.assertIsInstance(waypoints, list)
+        self.assertIsInstance(waypoints[0], BusRouteWaypointDetailed)
+
+        with self.assertRaises(IDNotFound):
+            bus_route_waypoints_detail(888)
