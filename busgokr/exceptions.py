@@ -26,3 +26,7 @@ class NameNotFound(BaseError):
 
 class BusRouteNotFound(BaseError):
     pass
+
+
+class BusStationNotFound(BaseError):
+    pass

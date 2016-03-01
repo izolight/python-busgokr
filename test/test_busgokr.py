@@ -32,18 +32,18 @@ class EndpointTests(unittest.TestCase):
         with self.assertRaises(NameNotFound):
             bus_route_type_search("999", 1)
 
+    def test_bus_route_coordinates(self):
+        coordinates = bus_route_coordinates(122900001)
+        self.assertIsInstance(coordinates, list)
+        self.assertIsInstance(coordinates[0], Coordinates)
+
+        with self.assertRaises(IDNotFound):
+            bus_route_coordinates(999)
+
     def test_bus_route_waypoints(self):
         waypoints = bus_route_waypoints(122900001)
         self.assertIsInstance(waypoints, list)
         self.assertIsInstance(waypoints[0], BusRouteWaypoint)
 
         with self.assertRaises(IDNotFound):
-            bus_route_waypoints(999)
-
-    def test_bus_route_waypoints_detail(self):
-        waypoints = bus_route_waypoints_detail(122900001)
-        self.assertIsInstance(waypoints, list)
-        self.assertIsInstance(waypoints[0], BusRouteWaypointDetailed)
-
-        with self.assertRaises(IDNotFound):
-            bus_route_waypoints_detail(888)
+            bus_route_waypoints(888)
