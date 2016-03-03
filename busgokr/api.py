@@ -25,7 +25,10 @@ class BusRoute:
         if data.get('lastLowTm'):
             if not data.get('lastLowTm').isspace():
                 self.last_low_bus = dt.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
-        self.route_type = int(data.get('routeType'))
+        if data.get('routeType'):
+            self.route_type = int(data.get('routeType'))
+        else:
+            self.route_type = None
         self.interval = int(data.get('term'))
         self.name = data.get('busRouteNm')
         self.length = float(data.get('length'))
@@ -290,12 +293,12 @@ def bus_stations_position_search(x, y, radius):
     url = endpoints.bus_stations_by_position.format(x, y, radius)
     q = _query_endpoint(url)
     if q:
-        bus_stations = []
+        stations = []
         for b in q:
             bs = BusStation(b)
             bs.set_distance_to_coordinates(x, y, b)
-            bus_stations.append(bs)
-        return bus_stations
+            stations.append(bs)
+        return stations
     else:
         raise NoStationAtPosition('No bus station within {0} of {1}/{2} found.'.format(radius, x, y))    
 
@@ -316,12 +319,24 @@ def bus_station_search(name):
     url = endpoints.bus_stations_by_name.format(quote_plus(quote_plus(name)))  # needs to be urlencoded 2 times
     q = _query_endpoint(url)
     if q:
-        bus_stations = []
+        stations = []
         for b in q:
-            bus_stations.append(BusStation(b))
-        return bus_stations
+            stations.append(BusStation(b))
+        return stations
     else:
         raise NameNotFound('No bus station with Name: {0} found.'.format(name))
+
+
+def bus_routes_by_station(serial):
+    url = endpoints.routes_by_bus_station.format(serial)
+    q = _query_endpoint(url)
+    if q:
+        routes = []
+        for r in q:
+            routes.append(BusRoute(r))
+        return routes
+    else:
+        raise BusRouteNotFound('No bus routes at serial: {0} found.'.format(serial))
 
 
 def _query_endpoint(url):
