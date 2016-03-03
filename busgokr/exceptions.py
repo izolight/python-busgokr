@@ -28,5 +28,9 @@ class BusRouteNotFound(BaseError):
     pass
 
 
-class BusStationNotFound(BaseError):
+class NoStationAtPosition(BaseError):
+    pass
+
+
+class NoRouteAtPosition(BaseError):
     pass

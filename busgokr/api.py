@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, time
+from datetime import time
+from datetime import datetime as dt
 from decimal import Decimal
 import requests
 
@@ -11,19 +12,18 @@ from busgokr.exceptions import *
 class BusRoute:
     def __init__(self, data):
         self.id = int(data.get('busRouteId'))
-        self.corporation = data.get('corpNm')
         if data.get('firstBusTm'):
             if not data.get('firstBusTm').isspace():
-                self.first_bus = datetime.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
+                self.first_bus = dt.strptime(data.get('firstBusTm'), "%Y%m%d%H%M%S")
         if data.get('lastBusTm'):
             if not data.get('lastBusTm').isspace():
-                self.last_bus = datetime.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
+                self.last_bus = dt.strptime(data.get('lastBusTm'), "%Y%m%d%H%M%S")
         if data.get('firstLowTm'):
             if not data.get('firstLowTm').isspace():
-                self.first_low_bus = datetime.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
+                self.first_low_bus = dt.strptime(data.get('firstLowTm'), "%Y%m%d%H%M%S")
         if data.get('lastLowTm'):
             if not data.get('lastLowTm').isspace():
-                self.last_low_bus = datetime.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
+                self.last_low_bus = dt.strptime(data.get('lastLowTm'), "%Y%m%d%H%M%S")
         self.route_type = int(data.get('routeType'))
         self.interval = int(data.get('term'))
         self.name = data.get('busRouteNm')
@@ -36,6 +36,9 @@ class BusRoute:
         if len(self.waypoints) == 0:
             self.waypoints = get_bus_route_waypoints(self.id)
         return self.waypoints
+
+    def set_corporation(self, data):
+        self.corporation = data.get('corpNm')
 
     def __str__(self):
         return self.name
@@ -91,10 +94,10 @@ class BusArrivalInfo:
         self.route_name = data.get('rtNm')
         if data.get('firstTm'):
             if not data.get('firstTm').isspace():
-                self.first_bus = datetime.strptime(data.get('firstTm'), "%Y%m%d%H%M%S")
+                self.first_bus = dt.strptime(data.get('firstTm'), "%Y%m%d%H%M%S")
         if data.get('lastTm'):
             if not data.get('lastTm').isspace():
-                self.first_bus = datetime.strptime(data.get('lastTm'), "%Y%m%d%H%M%S")
+                self.first_bus = dt.strptime(data.get('lastTm'), "%Y%m%d%H%M%S")
         self.interval = int(data.get('term'))
         self.route_type = int(data.get('routeType'))  # redundant if part of busroute
         if data.get('nextBus') == 'Y':
@@ -103,7 +106,7 @@ class BusArrivalInfo:
             self.last_bus_from_station = False
         self.station_order = int(data.get('staOrd'))
         self.direction = data.get('dir')
-        self.requested_time = datetime.strptime(data.get('mkTm'), "%Y-%m-%d %H:%M:%S.%f")
+        self.requested_time = dt.strptime(data.get('mkTm'), "%Y-%m-%d %H:%M:%S.%f")
         self.arriving_vehicle = ArrivingVehicle(data,1)
         self.next_vehicle = ArrivingVehicle(data,2)
 
@@ -138,8 +141,9 @@ class BusStation:
         self.name = data.get('stationNm')
         self.serial_number = data.get('arsId')
         self.station_type = int(data.get('stationTp'))
+        self.distance = None
     
-    def set_distance_to_coordinates(x, y, data):
+    def set_distance_to_coordinates(self, x, y, data):
         if not self.distance:
             self.distance = {}
         self.distance[(x, y)] = int(data.get('dist'))
@@ -195,7 +199,9 @@ def bus_route_info(route_id):
     url = endpoints.bus_route_by_id.format(route_id)
     q = _query_endpoint(url)
     if q:
-        return BusRoute(q[0])
+        b = BusRoute(q[0])
+        b.set_corporation(q[0])
+        return b
     else:
         raise IDNotFound('No busroute with id {0} found.'.format(route_id))
 
@@ -206,7 +212,9 @@ def bus_route_search(name):
     if q:
         routes = []
         for r in q:
-            routes.append(BusRoute(r))
+            b = BusRoute(r)
+            b.set_corporation(r)
+            routes.append(b)
         return routes
     else:
         raise NameNotFound('No busroutes with name {0} found.'.format(name))
@@ -218,7 +226,9 @@ def bus_route_type_search(name, route_type):
     if q:
         routes = []
         for r in q:
-            routes.append(BusRoute(r))
+            b = BusRoute(r)
+            b.set_corporation(r)
+            routes.append(b)
         return routes
     else:
         raise NameNotFound('No busroutes with name {0} and type {1} found.'.format(name, route_type))
@@ -230,7 +240,7 @@ def bus_route_coordinates(route_id):
     if q:
         coordinates = []
         for c in q:
-            coordinates.append(Coordinates(w))
+            coordinates.append(Coordinates(c))
         return coordinates
     else:
         raise IDNotFound('No busroute with id {0} found.'.format(route_id))
@@ -250,7 +260,7 @@ def bus_route_waypoints(route_id):
 
 def bus_route_all_arrival_info(route_id):
     url = endpoints.bus_arrival_info_by_route.format(route_id)
-    q = query_endpoint(url)
+    q = _query_endpoint(url)
     if q:
         arrival_info = []
         for a in q:
@@ -260,9 +270,9 @@ def bus_route_all_arrival_info(route_id):
         raise IDNotFound('No busroute with id {0} found.'.format(route_id))
 
 
-def bus_stations_search_position(x, y, radius):
+def bus_stations_position_search(x, y, radius):
     url = endpoints.bus_stations_by_position.format(x, y, radius)
-    q = query_endpoint(url)
+    q = _query_endpoint(url)
     if q:
         bus_stations = []
         for b in q:
@@ -271,11 +281,26 @@ def bus_stations_search_position(x, y, radius):
             bus_stations.append(bs)
         return bus_stations
     else:
-        raise BusStationNotFound('No bus station within {0} of {1}/{2} found.'.format(radius, x, y))    
+        raise NoStationAtPosition('No bus station within {0} of {1}/{2} found.'.format(radius, x, y))    
+
+
+def bus_route_position_search(x, y, radius):
+    url = endpoints.routes_by_position.format(x, y, radius)
+    q = _query_endpoint(url)
+    if q:
+        routes = []
+        for r in q:
+            routes.append(BusRoute(r))
+        return routes
+    else:
+        raise NoRouteAtPosition('No bus route within {0} of {1}/{2} found.'.format(radius, x, y))    
+
 
 def _query_endpoint(url):
     try:
-        data = requests.get(url).json()
+        resp = requests.get(url)
+        data = resp.json()        
+        resp.close()
     except requests.HTTPError as e:
         raise e
     except requests.URLRequired as e:
