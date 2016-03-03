@@ -3,6 +3,7 @@
 from datetime import time
 from datetime import datetime as dt
 from decimal import Decimal
+from urllib.parse import quote_plus
 import requests
 
 from busgokr import endpoints
@@ -31,6 +32,7 @@ class BusRoute:
         self.start_station = data.get('stStationNm')
         self.end_station = data.get('edStationNm')
         self.waypoints = []
+        self.corporation = None
 
     def get_waypoints(self):
         if len(self.waypoints) == 0:
@@ -49,8 +51,12 @@ class BusRoute:
 
 class Coordinates:
     def __init__(self, data):
-        self.x_gps = Decimal(data.get('gpsX'))
-        self.y_gps = Decimal(data.get('gpsY'))
+        if data.get('gpsX'):
+            self.x_gps = Decimal(data.get('gpsX'))
+            self.y_gps = Decimal(data.get('gpsY'))
+        else:
+            self.x_gps = Decimal(data.get('tmX'))
+            self.y_gps = Decimal(data.get('tmY'))
         self.x_korea1985 = Decimal(data.get('posX'))
         self.y_korea1985 = Decimal(data.get('posY'))
 
@@ -137,16 +143,26 @@ class ArrivingVehicle:
 class BusStation:
     def __init__(self, data):
         self.coordinates = Coordinates(data)
-        self.id = int(data.get('stationId'))
-        self.name = data.get('stationNm')
+        if data.get('stationId'):
+            self.id = int(data.get('stationId'))
+        else:
+            self.id = int(data.get('stId'))
+        if data.get('stationNm'):
+            self.name = data.get('stationNm')
+        else:
+            self.name = data.get('stNm')
         self.serial_number = data.get('arsId')
-        self.station_type = int(data.get('stationTp'))
+        if data.get('stationTp'):
+            self.station_type = int(data.get('stationTp'))
+        else:
+            self.station_type = None
         self.distance = None
     
     def set_distance_to_coordinates(self, x, y, data):
         if not self.distance:
             self.distance = {}
         self.distance[(x, y)] = int(data.get('dist'))
+
 
 def get_bus_route(route_id=None, name=None):
     errors = []
@@ -293,7 +309,19 @@ def bus_route_position_search(x, y, radius):
             routes.append(BusRoute(r))
         return routes
     else:
-        raise NoRouteAtPosition('No bus route within {0} of {1}/{2} found.'.format(radius, x, y))    
+        raise NoRouteAtPosition('No bus route within {0} of {1}/{2} found.'.format(radius, x, y))
+
+
+def bus_station_search(name):
+    url = endpoints.bus_stations_by_name.format(quote_plus(quote_plus(name)))  # needs to be urlencoded 2 times
+    q = _query_endpoint(url)
+    if q:
+        bus_stations = []
+        for b in q:
+            bus_stations.append(BusStation(b))
+        return bus_stations
+    else:
+        raise NameNotFound('No bus station with Name: {0} found.'.format(name))
 
 
 def _query_endpoint(url):
@@ -316,15 +344,6 @@ def _query_endpoint(url):
             return None
     else:
         raise ApiError(data['error'])
-
-
-class Error:
-    code = 0
-    message = ''
-
-    def __init__(self, json):
-        self.code = int(json[RESULTS['error']['code']])
-        self.message = json[RESULTS['error']['message']]
 
 
 RESULTS = {

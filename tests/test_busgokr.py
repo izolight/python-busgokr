@@ -78,6 +78,13 @@ class EndpointTests(unittest.TestCase):
         with self.assertRaises(NoRouteAtPosition):
             bus_route_position_search(1, 2, 3)
 
+    def test_bus_station_search(self):
+        stations = bus_station_search('강남')
+        self.assertIsInstance(stations, list)
+        self.assertIsInstance(stations[0], BusStation)
+
+        with self.assertRaises(NameNotFound):
+            bus_station_search('help')
 
 if __name__ == '__main__':
     unittest.main()

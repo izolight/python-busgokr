@@ -1,5 +1,6 @@
 #!/usr/env/bin python3
 
+
 class BaseError(Exception):
     def __init__(self, value):
         self.value = value
